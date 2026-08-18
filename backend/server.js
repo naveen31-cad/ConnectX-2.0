@@ -4,6 +4,9 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 require('dotenv').config();
 
+// Import your auth routes
+const authRoutes = require('./authRoutes');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -17,6 +20,9 @@ app.use(cors({
 
 app.use(express.json());
 
+// Mount the auth routes so /api/auth/register works!
+app.use('/api/auth', authRoutes);
+
 // Initialize Socket.IO with CORS enabled
 const io = new Server(server, {
   cors: {
@@ -26,7 +32,6 @@ const io = new Server(server, {
 });
 
 // Store active connected users mapped by socket.id
-// Example format: { socketId: { userName: "John", domain: "healthcare" } }
 const activeConnectedUsers = new Map();
 
 // Helper to count active users across each domain dynamically
@@ -59,7 +64,6 @@ io.on('connection', (socket) => {
   socket.on('switch_domain', ({ userName, domain }) => {
     const userDisplayName = userName || 'Anonymous User';
     
-    // Register or update current socket's user and active domain
     activeConnectedUsers.set(socket.id, {
       userName: userDisplayName,
       domain: domain || 'dashboard',
@@ -68,7 +72,6 @@ io.on('connection', (socket) => {
 
     console.log(`👤 User "${userDisplayName}" switched to domain: ${domain}`);
 
-    // Broadcast updated live counts to ALL connected clients
     const updatedCounts = calculateDomainCounts();
     io.emit('realtime_domain_counts', updatedCounts);
   });
@@ -81,7 +84,6 @@ io.on('connection', (socket) => {
       activeConnectedUsers.delete(socket.id);
     }
 
-    // Broadcast updated live counts after disconnect
     const updatedCounts = calculateDomainCounts();
     io.emit('realtime_domain_counts', updatedCounts);
   });
