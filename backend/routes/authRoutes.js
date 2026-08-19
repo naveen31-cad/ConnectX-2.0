@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jwt-simple'); // or 'jsonwebtoken'
+const jwt = require('jsonwebtoken'); // or 'jsonwebtoken'
 
 // In-Memory User Database (Replace with MongoDB/PostgreSQL model in production)
 const users = [];
