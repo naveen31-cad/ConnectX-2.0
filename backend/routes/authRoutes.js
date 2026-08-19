@@ -42,7 +42,7 @@ router.post('/register', async (req, res) => {
 
     // Generate JWT Auth Token
     const payload = { id: newUser.id, email: newUser.email };
-    const token = jwt.encode(payload, JWT_SECRET);
+    const token = jwt.sign(payload, JWT_SECRET);
 
     // Return real user data (excluding password) and auth token
     return res.status(201).json({
@@ -85,7 +85,7 @@ router.post('/login', async (req, res) => {
 
     // Generate JWT Auth Token
     const payload = { id: user.id, email: user.email };
-    const token = jwt.encode(payload, JWT_SECRET);
+    const token = jwt.sign(payload, JWT_SECRET);
 
     // Return user info and token
     return res.status(200).json({
