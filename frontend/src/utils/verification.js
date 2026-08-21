@@ -1,10 +1,13 @@
-// Validates strict 12-digit numerical format for National ID
-export const validateNationalID = (id) => {
-  const regex = /^\d{12}$/;
-  return regex.test(id);
-};
+// src/utils/verification.js
 
-// Generates a 6-digit mock OTP displayed on-screen for testing
-export const generateTestOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
+/**
+ * Validates a national ID or standard identification number.
+ * Modify the regex or logic based on your specific requirements.
+ */
+export function validateNationalID(id) {
+  if (!id) return false;
+  // Example validation: checks if the ID is alphanumeric and at least 6 characters long
+  const cleanId = id.trim();
+  const idRegex = /^[A-Za-z0-9]{6,20}$/;
+  return idRegex.test(cleanId);
+}

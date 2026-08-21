@@ -1,105 +1,178 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
-
-// Import your auth routes
-const authRoutes = require('./routes/authRoutes'); // adjust folder name if needed
 
 const app = express();
 const server = http.createServer(app);
 
-// Enable CORS for frontend connection (works locally & in production)
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-
-app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
-}));
-
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-// Mount the auth routes so /api/auth/register works!
-app.use('/api/auth', authRoutes);
-
-// Initialize Socket.IO with CORS enabled
+// Socket.io Setup
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: "*",
+    methods: ["GET", "POST"]
   }
 });
 
-// Store active connected users mapped by socket.id
-const activeConnectedUsers = new Map();
+// User Schema / Model
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  password: String,
+  domain: String,
+  selectedDomain: String
+}, { timestamps: true });
 
-// Helper to count active users across each domain dynamically
-const calculateDomainCounts = () => {
-  const counts = {
-    total: activeConnectedUsers.size,
-    healthcare: 0,
-    agri: 0,
-    location: 0,
-    service: 0,
-    analytics: 0,
-    dashboard: 0
-  };
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
-  activeConnectedUsers.forEach((userInfo) => {
-    const domain = userInfo.domain;
-    if (counts.hasOwnProperty(domain)) {
-      counts[domain] += 1;
+// ==========================================
+// API ROUTES
+// ==========================================
+
+// Login Route
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.password && user.password !== password) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
-  });
-
-  return counts;
-};
-
-// Real-Time Socket Event Handling
-io.on('connection', (socket) => {
-  console.log(`⚡ New user connected: Socket ID ${socket.id}`);
-
-  // Handle domain switching event from frontend
-  socket.on('switch_domain', ({ userName, domain }) => {
-    const userDisplayName = userName || 'Anonymous User';
     
-    activeConnectedUsers.set(socket.id, {
-      userName: userDisplayName,
-      domain: domain || 'dashboard',
-      joinedAt: new Date()
+    // Broadcast login notification via Socket.io
+    io.emit('live-notification', { message: `User ${user.name} logged in!`, type: 'login' });
+
+    res.json({ message: "Login successful", success: true, user });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Server error during login" });
+  }
+});
+
+// Register Route
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, domain, selectedDomain } = req.body;
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ error: "User already exists" });
+    
+    const assignedDomain = domain || selectedDomain || 'Other';
+    const newUser = new User({
+      name,
+      email,
+      password,
+      domain: assignedDomain,
+      selectedDomain: assignedDomain
+    });
+    await newUser.save();
+
+    // Broadcast registration notification to all connected clients via Socket.io
+    io.emit('live-notification', { 
+      message: `New user registered: ${name} (${assignedDomain})`, 
+      type: 'register' 
     });
 
-    console.log(`👤 User "${userDisplayName}" switched to domain: ${domain}`);
+    res.status(201).json({ message: "User registered successfully", success: true, user: newUser });
+  } catch (err) {
+    console.error("Registration error:", err);
+    res.status(500).json({ error: "Server error during registration" });
+  }
+});
 
-    const updatedCounts = calculateDomainCounts();
-    io.emit('realtime_domain_counts', updatedCounts);
+// Agriculture Users Route
+app.get('/api/agri/users', async (req, res) => {
+  try {
+    const users = await User.find({ 
+      $or: [{ domain: /agri/i }, { selectedDomain: /agri/i }] 
+    }).select('name email createdAt');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch agri users" });
+  }
+});
+
+// Healthcare Users Route
+app.get('/api/healthcare/users', async (req, res) => {
+  try {
+    const users = await User.find({ 
+      $or: [{ domain: /health/i }, { selectedDomain: /health/i }] 
+    }).select('name email createdAt');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch healthcare users" });
+  }
+});
+
+// Home Services Users Route
+app.get('/api/homeservices/users', async (req, res) => {
+  try {
+    const users = await User.find({ 
+      $or: [{ domain: /home/i }, { selectedDomain: /home/i }] 
+    }).select('name email createdAt');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch home service users" });
+  }
+});
+
+// Other Users Route
+app.get('/api/other/users', async (req, res) => {
+  try {
+    const users = await User.find({ 
+      $or: [
+        { domain: /other/i }, 
+        { selectedDomain: /other/i },
+        { domain: { $exists: false } },
+        { domain: null },
+        { domain: "" }
+      ] 
+    }).select('name email createdAt');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch other domain users" });
+  }
+});
+
+app.get('/', (req, res) => {
+  res.send('ConnectX 2.0 Backend Server is running.');
+});
+
+// Socket.io Connection Handler
+io.on('connection', (socket) => {
+  console.log(`⚡ New client connected: ${socket.id}`);
+
+  socket.on('switch-domain', (data) => {
+    const username = data?.username || "A user";
+    const domain = data?.domain || "unknown";
+    console.log(`👤 User "${username}" switched domain to: ${domain}`);
+    
+    // Broadcast domain switch event
+    io.emit('live-notification', { 
+      message: `${username} switched to ${domain} domain`, 
+      type: 'domain-switch' 
+    });
   });
 
-  // Handle user disconnect
   socket.on('disconnect', () => {
-    const disconnectedUser = activeConnectedUsers.get(socket.id);
-    if (disconnectedUser) {
-      console.log(`❌ User "${disconnectedUser.userName}" disconnected`);
-      activeConnectedUsers.delete(socket.id);
-    }
-
-    const updatedCounts = calculateDomainCounts();
-    io.emit('realtime_domain_counts', updatedCounts);
+    console.log(`❌ Client disconnected: ${socket.id}`);
   });
 });
 
-// Basic Health Check Route
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    activeUsers: activeConnectedUsers.size,
-    timestamp: new Date()
-  });
-});
-
-// Start Express Server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 ConnectX 2.0 Backend & Socket Server running on port ${PORT}`);
-});
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/connectx';
+
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    console.log('📦 Connected to MongoDB database successfully');
+    // Updated to '0.0.0.0' to accept external requests from mobile devices on the same network
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => console.error('❌ Database error:', err));

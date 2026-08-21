@@ -1,175 +1,139 @@
+import { BACKEND_URL } from '../config';
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 export default function Register() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
   const navigate = useNavigate();
-
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    // Basic Validation
-    if (formData.password !== formData.confirmPassword) {
-      return setError('Passwords do not match.');
-    }
-
-    if (formData.password.length < 6) {
-      return setError('Password must be at least 6 characters long.');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
     }
 
     setLoading(true);
+    setError('');
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+      const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: fullName, username, email, password }),
       });
 
-      const data = await response.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Registration failed');
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      // Automatically log in the newly registered real user
-      login(data.user, data.token);
-
-      // Redirect directly to the live Dashboard
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-md bg-white border border-slate-100 p-8 rounded-3xl shadow-sm space-y-6">
-        
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <span className="inline-block px-3 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full border border-violet-200">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm w-full max-w-md space-y-5">
+        <div className="text-center space-y-1">
+          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
             ConnectX 2.0 Account Creation
           </span>
-          <h2 className="text-2xl font-bold text-slate-800">Create Your Account</h2>
-          <p className="text-xs text-slate-500">Sign up to access cross-domain telemetry features</p>
+          <h2 className="text-2xl font-bold text-slate-800 pt-2">Create Your Account</h2>
         </div>
 
-        {/* Error Notification */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-600 text-xs p-3.5 rounded-2xl flex items-center gap-2">
-            <span>⚠️</span>
-            <span>{error}</span>
+          <div className="bg-rose-50 text-rose-600 text-xs p-3 rounded-xl border border-rose-100 font-medium">
+            ⚠️ {error}
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Full Name
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase">Full Name</label>
             <input
               type="text"
-              name="name"
               required
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="e.g. Alex Morgan"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 focus:outline-none focus:border-violet-500 transition-colors"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full mt-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+              placeholder="e.g. Naveen"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Email Address
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase">Username</label>
+            <input
+              type="text"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+              className="w-full mt-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+              placeholder="e.g. naveen_07"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-600 uppercase">Email Address</label>
             <input
               type="email"
-              name="email"
               required
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="user@example.com"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 focus:outline-none focus:border-violet-500 transition-colors"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full mt-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+              placeholder="name@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Password
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase">Password</label>
             <input
               type="password"
-              name="password"
               required
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 focus:outline-none focus:border-violet-500 transition-colors"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full mt-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-              Confirm Password
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase">Confirm Password</label>
             <input
               type="password"
-              name="confirmPassword"
               required
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="••••••••"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 focus:outline-none focus:border-violet-500 transition-colors"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full mt-1 p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs py-3.5 rounded-2xl transition-all shadow-sm active:scale-98 disabled:opacity-50"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
           >
-            {loading ? 'Registering...' : 'Create Account ✨'}
+            {loading ? 'Creating Account...' : 'Create Account 🚀'}
           </button>
         </form>
 
-        {/* Footer Link */}
-        <p className="text-center text-xs text-slate-400 pt-2">
+        <p className="text-xs text-center text-slate-500">
           Already have an account?{' '}
-          <Link to="/login" className="text-violet-600 font-bold hover:underline">
-            Sign In Here
+          <Link to="/login" className="text-indigo-600 font-bold hover:underline">
+            Sign In
           </Link>
         </p>
-
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // or 'jsonwebtoken'
+const jwt = require('jsonwebtoken');
 
-// In-Memory User Database (Replace with MongoDB/PostgreSQL model in production)
+// In-Memory User Database (Shared across routes)
+// Note: In production, use MongoDB or PostgreSQL models.
 const users = [];
 
 const JWT_SECRET = process.env.JWT_SECRET || 'connectx_super_secret_jwt_key_2026';
@@ -13,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'connectx_super_secret_jwt_key_2026
 // ------------------------------------------------------------------
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, domain } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide name, email, and password.' });
@@ -29,12 +30,13 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create real user object
+    // Create real user object (store domain if selected during registration)
     const newUser = {
       id: Date.now().toString(),
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
+      domain: domain ? domain.toLowerCase().trim() : 'other',
       createdAt: new Date()
     };
 
@@ -51,7 +53,8 @@ router.post('/register', async (req, res) => {
       user: {
         id: newUser.id,
         name: newUser.name,
-        email: newUser.email
+        email: newUser.email,
+        domain: newUser.domain
       }
     });
   } catch (error) {
@@ -94,13 +97,37 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        domain: user.domain
       }
     });
   } catch (error) {
     console.error('Login Error:', error);
     return res.status(500).json({ message: 'Internal Server Error during login.' });
   }
+});
+
+// ------------------------------------------------------------------
+// 3. GET Domain-Specific User Endpoints
+// ------------------------------------------------------------------
+router.get('/agri/users', (req, res) => {
+  const agriUsers = users.filter(u => u.domain === 'agriculture' || u.domain === 'agri');
+  return res.status(200).json(agriUsers);
+});
+
+router.get('/healthcare/users', (req, res) => {
+  const healthcareUsers = users.filter(u => u.domain === 'healthcare');
+  return res.status(200).json(healthcareUsers);
+});
+
+router.get('/homeservices/users', (req, res) => {
+  const homeUsers = users.filter(u => u.domain === 'homeservices' || u.domain === 'home services');
+  return res.status(200).json(homeUsers);
+});
+
+router.get('/other/users', (req, res) => {
+  const otherUsers = users.filter(u => !u.domain || u.domain === 'other');
+  return res.status(200).json(otherUsers);
 });
 
 module.exports = router;

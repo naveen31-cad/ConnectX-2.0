@@ -1,53 +1,31 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Dashboard from './pages/Dashboard';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext'; // Make sure the path matches your context file
 import Login from './pages/Login';
 import Register from './pages/Register';
-
-// Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  const token = localStorage.getItem('token');
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-xs text-slate-500">
-        Loading ConnectX session...
-      </div>
-    );
-  }
-
-  if (!user && !token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-};
+import Dashboard from './pages/Dashboard';
+import Agri from './pages/Agri';
+import Healthcare from './pages/Healthcare';
+import HomeServices from './pages/HomeServices';
+import Other from './pages/other';
+import DemandAnalytics from './pages/DemandAnalytics';
 
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <BrowserRouter>
         <Routes>
-          {/* Public Auth Routes */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
-          {/* Protected Dashboard Route */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Default Redirect */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/agri" element={<Agri />} />
+          <Route path="/healthcare" element={<Healthcare />} />
+          <Route path="/homeservices" element={<HomeServices />} />
+          <Route path="/other" element={<Other />} />
+          <Route path="/demand-analytics" element={<DemandAnalytics />} />
         </Routes>
-      </Router>
+      </BrowserRouter>
     </AuthProvider>
   );
 }
