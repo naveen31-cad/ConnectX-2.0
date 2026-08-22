@@ -31,18 +31,21 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
-  // Logout handler to clear user session
+  // Logout handler to clear user session safely
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     sessionStorage.clear();
     setUser(null);
-    window.location.href = '/login';
+    
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   return (
     <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
-      {!loading && children}
+      {loading ? null : children}
     </AuthContext.Provider>
   );
 };
