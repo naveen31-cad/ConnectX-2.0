@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Agri from './pages/Agri';
 import Healthcare from './pages/Healthcare';
 import HomeServices from './pages/HomeServices';
-import Other from './pages/Other';
+import Other from './pages/OtherPage';
 import DemandAnalytics from './pages/DemandAnalytics';
 
 export default function App() {
