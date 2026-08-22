@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import HelpModal from './HelpModal';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -14,6 +16,33 @@ export default function Agri() {
   const [requestDesc, setRequestDesc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Help Modal State
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // Socket.io and User Session Initialization (Safely inside useEffect)
+  useEffect(() => {
+    let socket;
+    try {
+      socket = io(BACKEND_URL);
+      const stored = localStorage.getItem('user');
+      const currentUser = stored ? JSON.parse(stored) : {};
+      const userName = currentUser.name || 'User';
+
+      socket.on('connect', () => {
+        socket.emit('switch_domain', { userName, domain: 'agriculture' });
+      });
+      if (socket.connected) {
+        socket.emit('switch_domain', { userName, domain: 'agriculture' });
+      }
+    } catch (e) {
+      console.error('Socket initialization error:', e);
+    }
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, []);
 
   // Fetch real users registered in the Agriculture domain from your backend database
   useEffect(() => {
@@ -66,7 +95,7 @@ export default function Agri() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-700 p-6 md:p-10 font-sans space-y-6">
       
-      {/* Top Header */}
+      {/* Top Header with Back and Help Button */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
           <Link to="/dashboard" className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-xl hover:bg-emerald-200 transition-colors inline-block mb-2">
@@ -78,6 +107,14 @@ export default function Agri() {
           <p className="text-slate-500 text-sm mt-1">
             Real-time database records and active participants.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsHelpOpen(true)}
+            className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-xl hover:bg-amber-200 transition-colors shadow-sm"
+          >
+            Help ❓
+          </button>
         </div>
       </div>
 
@@ -205,6 +242,13 @@ export default function Agri() {
           </div>
         </div>
       )}
+
+      {/* Help Modal */}
+      <HelpModal 
+        isOpen={isHelpOpen} 
+        onClose={() => setIsHelpOpen(false)} 
+        domainName="Agriculture" 
+      />
 
     </div>
   );

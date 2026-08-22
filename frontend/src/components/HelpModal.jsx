@@ -1,66 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
-import { Link } from 'react-router-dom';
-import HelpModal from './HelpModal';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-const socket = io(BACKEND_URL);
-
-export default function Agri() {
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
+export default function HelpModal({ isOpen, onClose, domainName }) {
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const userName = currentUser.name || 'User';
-
-    socket.on('connect', () => {
-      socket.emit('switch_domain', { userName, domain: 'agriculture' });
-    });
-    if (socket.connected) {
-      socket.emit('switch_domain', { userName, domain: 'agriculture' });
+    if (isOpen) {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          setCurrentUser(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error('Error parsing user in HelpModal:', e);
+      }
     }
+  }, [isOpen]);
 
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  if (!isOpen) return null;
 
   return (
-    <div className="min-h-screen bg-emerald-50/30 p-6 md:p-10 font-sans space-y-6">
-      
-      {/* Navigation Header with Help Button */}
-      <div className="flex items-center justify-between">
-        <Link to="/dashboard" className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1.5 rounded-xl hover:bg-emerald-200 transition-colors">
-          ← Back to Dashboard
-        </Link>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsHelpOpen(true)}
-            className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-xl hover:bg-amber-200 transition-colors shadow-sm"
-          >
-            Help ❓
-          </button>
-          <span className="text-xs font-semibold px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full">
-            🌾 Agriculture Module
-          </span>
-        </div>
-      </div>
-
-      {/* Main Container */}
-      <div className="bg-white border border-emerald-100 p-8 rounded-3xl shadow-sm space-y-4 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-800">Offline Agricultural USSD & Market Rates</h1>
-        <p className="text-slate-500 text-sm">
-          Access real-time crop market pricing, offline USSD tools, and broadcast updates via SMS/WhatsApp lists.
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl">
+        <h2 className="text-xl font-bold text-slate-800">Help & Support ({domainName || 'General'})</h2>
+        <p className="text-sm text-slate-600">
+          Hello {currentUser?.name || 'User'}, need assistance with the {domainName} module? Contact support or check your connection.
         </p>
+        <button
+          onClick={onClose}
+          className="w-full py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 transition-colors"
+        >
+          Close
+        </button>
       </div>
-
-      {/* Help Modal */}
-      <HelpModal 
-        isOpen={isHelpOpen} 
-        onClose={() => setIsHelpOpen(false)} 
-        domainName="Agriculture" 
-      />
-
     </div>
   );
 }
